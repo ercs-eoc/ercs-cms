@@ -1,6 +1,7 @@
 import {
     use,
     useCallback,
+    useState,
 } from 'react';
 import {
     CloseLineIcon,
@@ -14,6 +15,7 @@ import {
     Image,
     InlineLayout,
     ListView,
+    Modal,
 } from '@ifrc-go/ui';
 import { gql } from 'urql';
 
@@ -49,11 +51,13 @@ function Navbar(props: Props) {
     const navigate = useRouting();
 
     const [{ fetching: pendingLogout }, triggerLogout] = useLogoutMutation();
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
     const handleLogout = useCallback(async () => {
         const res = await triggerLogout({});
         const logoutResponse = res.data?.logout;
         if (logoutResponse) {
+            setShowLogoutConfirm(false);
             setUser(undefined);
             navigate('login');
             alert.show('Logout Successful', { variant: 'success' });
@@ -113,17 +117,44 @@ function Navbar(props: Props) {
                         )}
                     >
                         <Button
-                            name="logout"
+                            name
                             styleVariant="transparent"
-                            onClick={handleLogout}
-                            disabled={pendingLogout}
+                            onClick={setShowLogoutConfirm}
                             withFullWidth
                         >
-                            {pendingLogout ? 'Logging out' : 'Logout'}
+                            Logout
                         </Button>
                     </DropdownMenu>
                 )}
             />
+            {showLogoutConfirm && (
+                <Modal
+                    heading="Logout"
+                    size="sm"
+                    onClose={() => setShowLogoutConfirm(false)}
+                    footerActions={(
+                        <ListView spacing="sm">
+                            <Button
+                                name={false}
+                                onClick={setShowLogoutConfirm}
+                                disabled={pendingLogout}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                name={undefined}
+                                styleVariant="filled"
+                                onClick={handleLogout}
+                                disabled={pendingLogout}
+                            >
+                                {pendingLogout ? 'Logging out' : 'Logout'}
+                            </Button>
+                        </ListView>
+                    )}
+                >
+                    Are you sure you want to logout?
+                </Modal>
+            )}
         </nav>
     );
 }

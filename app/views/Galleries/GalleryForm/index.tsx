@@ -14,6 +14,7 @@ import {
     BlockLoading,
     Button,
     Checkbox,
+    ConfirmButton,
     Container,
     Heading,
     IconButton,
@@ -488,14 +489,16 @@ function GalleryForm() {
                                 label={`Select all (${selectedImageIds.length}/${existingImages.length})`}
                                 disabled={submitting}
                             />
-                            <Button
+                            <ConfirmButton
                                 name={undefined}
-                                onClick={handleRemoveSelectedClick}
+                                onConfirm={handleRemoveSelectedClick}
+                                confirmHeading="Delete images"
+                                confirmMessage={`Are you sure you want to delete ${selectedImageIds.length} selected image(s)?`}
                                 colorVariant="danger"
                                 disabled={submitting || selectedImageIds.length === 0}
                             >
                                 Delete selected
-                            </Button>
+                            </ConfirmButton>
                         </ListView>
                     )}
                     <ListView

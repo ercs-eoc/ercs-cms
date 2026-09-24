@@ -190,6 +190,7 @@ function PmerForm() {
             id,
             data: {
                 ...removeNull(rest),
+                description: rest.description ?? null,
                 ...(isDefined(file) ? { file } : {}),
             } as PmerReportUpdateInput,
         });

@@ -94,7 +94,7 @@ function ResourceDashboards() {
             search: filter.search || undefined,
             regions: filter.regions?.length ? filter.regions : undefined,
         },
-        order: { order: Ordering.Asc },
+        ordering: [{ order: Ordering.Asc }, { title: Ordering.Asc }],
     }), [limit, offset, filter, id]);
 
     const [, deleteResourceDashboard] = useDeleteResourceDashboardMutation();

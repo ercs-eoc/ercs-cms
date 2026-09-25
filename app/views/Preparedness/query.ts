@@ -2,8 +2,8 @@
 import { gql } from 'urql';
 
 const EXTERNAL_DASHBOARDS = gql`
-    query PreparednessExternalDashboards($pagination: OffsetPaginationInput, $filters: ExternalDashboardFilter, $order: ExternalDashboardOrder) {
-        externalDashboards(pagination: $pagination, filters: $filters, order: $order) {
+    query PreparednessExternalDashboards($pagination: OffsetPaginationInput, $filters: ExternalDashboardFilter, $ordering: [ExternalDashboardOrder!]) {
+        externalDashboards(pagination: $pagination, filters: $filters, ordering: $ordering) {
             results {
                 createdAt
                 createdById

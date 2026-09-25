@@ -47,7 +47,7 @@ const GALLERY_IMAGES = gql`
     ) {
         galleryImages (
             filters: $filters,
-            order: { order: ASC },
+            ordering: [{ order: ASC }],
             pagination: {
                 offset: $offset,
                 limit: $limit

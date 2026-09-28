@@ -49,6 +49,7 @@
 
 .file-item {
     position: relative;
+    isolation: isolate;
 }
 
 .file-item .image-element {

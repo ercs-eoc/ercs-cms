@@ -45,8 +45,8 @@ import {
     type GalleryAlbumCreateInput,
     type GalleryAlbumUpdateInput,
     type GalleryImageListQuery,
+    useBulkCreateGalleryImagesMutation,
     useCreateGalleryAlbumMutation,
-    useCreateGalleryImageMutation,
     useDeleteGalleryImageMutation,
     useGalleryAlbumDetailQuery,
     useGalleryImageListQuery,
@@ -79,8 +79,9 @@ const GalleryAlbumSchema: FormSchema = {
 
 const defaultEditFormValue: PartialFormType = {};
 
-// Number of images fetched per page in the edit view.
 const IMAGES_PER_PAGE = 10;
+
+const MAX_ALBUM_IMAGES = 100;
 
 type GalleryImage = GalleryImageListQuery['galleryImages']['results'][number];
 
@@ -91,13 +92,6 @@ function getDisplayName(name: string) {
 interface NewImage {
     file: File;
     preview: string;
-}
-
-interface ExistingImage {
-    id: string;
-    name: string;
-    size: number;
-    url: string;
 }
 
 function GalleryForm() {
@@ -140,7 +134,7 @@ function GalleryForm() {
 
     const [{ fetching: createGalleryPending }, createAlbum] = useCreateGalleryAlbumMutation();
     const [{ fetching: updateGalleryPending }, updateAlbum] = useUpdateGalleryAlbumMutation();
-    const [, addImagesToGallery] = useCreateGalleryImageMutation();
+    const [, addImagesToGallery] = useBulkCreateGalleryImagesMutation();
     const [, deleteImagesFromGallery] = useDeleteGalleryImageMutation();
 
     const albumData = data?.galleryAlbum;
@@ -164,18 +158,13 @@ function GalleryForm() {
         setTotalImages(imagesData.galleryImages.totalCount);
     }, [imagesData, imagesFetch]);
 
-    const existingImages: ExistingImage[] = useMemo(() => (
-        loadedImages
-            .filter((image) => !removedImageIds.includes(image.id))
-            .map((image) => ({
-                id: image.id,
-                name: image.image.name,
-                size: image.image.size,
-                url: image.image.url,
-            }))
+    const existingImages = useMemo(() => (
+        loadedImages.filter((image) => !removedImageIds.includes(image.id))
     ), [loadedImages, removedImageIds]);
 
     const loadedImagesCount = loadedImages.length;
+    const savedImagesCount = totalImages - removedImageIds.length;
+    const remainingImageSlots = MAX_ALBUM_IMAGES - savedImagesCount - newImages.length;
     const hasMoreImages = loadedImagesCount < totalImages;
 
     const handleLoadMoreClick = useCallback(() => {
@@ -211,16 +200,22 @@ function GalleryForm() {
             }
             return true;
         });
+        const allowed = accepted.slice(0, Math.max(remainingImageSlots, 0));
+        if (allowed.length < accepted.length) {
+            const limitMessage = `An album can have at most ${MAX_ALBUM_IMAGES} images, so the remaining images could not be added.`;
+            rejected.push(limitMessage);
+            alert.show(limitMessage, { variant: 'danger' });
+        }
         setFileErrors(rejected);
-        if (accepted.length === 0) {
+        if (allowed.length === 0) {
             return;
         }
-        const acceptedWithPreviews = accepted.map((file) => ({
+        const acceptedWithPreviews = allowed.map((file) => ({
             file,
             preview: URL.createObjectURL(file),
         }));
         setNewImages((prev) => [...prev, ...acceptedWithPreviews]);
-    }, []);
+    }, [remainingImageSlots, alert]);
 
     const handleRemoveExistingImage = useCallback((imageId: string) => {
         setRemovedImageIds((prev) => [...prev, imageId]);
@@ -264,29 +259,27 @@ function GalleryForm() {
             (res) => !res.data?.deleteGalleryImage?.ok,
         );
 
-        const uploadResponses = await Promise.all(
-            newImages.map(({ file }, index) => addImagesToGallery({
+        let uploadFailed = false;
+        let uploadedImageIds: string[] = [];
+        if (newImages.length > 0) {
+            const uploadRes = await addImagesToGallery({
                 data: {
-                    album: albumId,
-                    image: file,
-                    order: existingImages.length + index,
+                    images: newImages.map(({ file }, index) => ({
+                        album: albumId,
+                        image: file,
+                        order: savedImagesCount + index,
+                    })),
                 },
-            })),
-        );
-        const uploadFailed = uploadResponses.some(
-            (res) => !res.data?.createGalleryImage?.ok,
-        );
-
-        const uploadedImageIds = uploadResponses
-            .map((res) => res.data?.createGalleryImage?.result?.id)
-            .filter(isDefined);
-        const coverImageId = existingImages[0]?.id ?? uploadedImageIds[0];
-
+            });
+            const uploadResult = uploadRes.data?.bulkCreateGalleryImages;
+            uploadFailed = !uploadResult?.ok;
+            uploadedImageIds = uploadResult?.result?.map((image) => image.id) ?? [];
+        }
         let coverFailed = false;
-        if (coverImageId) {
+        if (existingImages.length === 0 && uploadedImageIds.length > 0) {
             const coverRes = await updateAlbum({
                 id: albumId,
-                data: { coverImage: coverImageId },
+                data: { coverImage: uploadedImageIds[0] },
             });
             coverFailed = !coverRes.data?.updateGalleryAlbum?.ok;
         }
@@ -299,6 +292,7 @@ function GalleryForm() {
         removedImageIds,
         existingImages,
         newImages,
+        savedImagesCount,
     ]);
 
     const handleCreateGallery = useCallback(async (formData: PartialFormType) => {
@@ -347,7 +341,10 @@ function GalleryForm() {
         try {
             const res = await updateAlbum({
                 id,
-                data: formData as GalleryAlbumUpdateInput,
+                data: {
+                    ...formData,
+                    coverImage: existingImages[0]?.id,
+                } as GalleryAlbumUpdateInput,
             });
             const result = res.data?.updateGalleryAlbum;
             if (!result?.ok) {
@@ -380,6 +377,7 @@ function GalleryForm() {
         setError,
         updateAlbum,
         handleGalleryImages,
+        existingImages,
     ]);
 
     const handleFormSubmit = useCallback(
@@ -390,6 +388,12 @@ function GalleryForm() {
         )(),
         [validate, setError, id, handleUpdateGallery, handleCreateGallery],
     );
+
+    const saveConfirmMessage = [
+        'Are you sure you want to save this gallery?',
+        newImages.length > 0 && `${newImages.length} image(s) will be uploaded.`,
+        removedImageIds.length > 0 && `${removedImageIds.length} image(s) will be deleted.`,
+    ].filter(Boolean).join(' ');
 
     const handleCancelClick = useCallback(() => {
         navigate('galleries');
@@ -423,9 +427,11 @@ function GalleryForm() {
                     >
                         Cancel
                     </Button>
-                    <Button
+                    <ConfirmButton
                         name={undefined}
-                        onClick={handleFormSubmit}
+                        onConfirm={handleFormSubmit}
+                        confirmHeading="Save gallery"
+                        confirmMessage={saveConfirmMessage}
                         styleVariant="filled"
                         disabled={
                             submitting
@@ -434,7 +440,7 @@ function GalleryForm() {
                         }
                     >
                         Save
-                    </Button>
+                    </ConfirmButton>
                 </ListView>
             )}
         >
@@ -458,17 +464,17 @@ function GalleryForm() {
                 </InputSection>
                 <InputSection
                     title="Add Content"
-                    description="Upload Images for the event"
+                    description={`Upload images for the event (${MAX_ALBUM_IMAGES - remainingImageSlots}/${MAX_ALBUM_IMAGES})`}
                 >
                     <RawFileInput
                         name={undefined}
                         multiple
                         accept={ACCEPTED_IMAGE_TYPES}
-                        disabled={submitting}
+                        disabled={submitting || remainingImageSlots <= 0}
                         onChange={handleFilesSelect}
                         className={_cs(
                             styles.uploadTile,
-                            submitting && styles.disabled,
+                            (submitting || remainingImageSlots <= 0) && styles.disabled,
                         )}
                         childrenContainerClassName={styles.uploadTileContent}
                         styleVariant="action"
@@ -489,16 +495,14 @@ function GalleryForm() {
                                 label={`Select all (${selectedImageIds.length}/${existingImages.length})`}
                                 disabled={submitting}
                             />
-                            <ConfirmButton
+                            <Button
                                 name={undefined}
-                                onConfirm={handleRemoveSelectedClick}
-                                confirmHeading="Delete images"
-                                confirmMessage={`Are you sure you want to delete ${selectedImageIds.length} selected image(s)?`}
+                                onClick={handleRemoveSelectedClick}
                                 colorVariant="danger"
                                 disabled={submitting || selectedImageIds.length === 0}
                             >
                                 Delete selected
-                            </ConfirmButton>
+                            </Button>
                         </ListView>
                     )}
                     <ListView
@@ -520,11 +524,11 @@ function GalleryForm() {
                                 />
                                 <Image
                                     imgElementClassName={styles.imageElement}
-                                    src={image.url}
-                                    alt={image.name}
+                                    src={image.image.url}
+                                    alt={image.image.name}
                                     caption={(
                                         <Heading level={6} ellipsize>
-                                            {getDisplayName(image.name)}
+                                            {getDisplayName(image.image.name)}
                                         </Heading>
                                     )}
                                     size="md"

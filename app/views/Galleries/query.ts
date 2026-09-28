@@ -61,7 +61,6 @@ const GALLERY_IMAGES = gql`
                 order
                 image {
                     name
-                    size
                     url
                 }
             }
@@ -69,10 +68,10 @@ const GALLERY_IMAGES = gql`
     }
 `;
 
-const CREATE_GALLERY_IMAGE = gql`
-    mutation CreateGalleryImage($data: GalleryImageCreateInput!) {
-        createGalleryImage(data: $data) {
-            ... on GalleryImageTypeMutationResponseType {
+const BULK_CREATE_GALLERY_IMAGES = gql`
+    mutation BulkCreateGalleryImages($data: GalleryImageBulkCreateInput!) {
+        bulkCreateGalleryImages(data: $data) {
+            ... on GalleryImageTypeListMutationResponseType {
                 errors
                 ok
                 result {

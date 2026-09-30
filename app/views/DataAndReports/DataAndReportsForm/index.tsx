@@ -239,6 +239,7 @@ function DataAndReportsForm() {
             id,
             data: {
                 ...omitKeys(removeNull(rest), ['contentType', 'iframeUrl']),
+                description: rest.description ?? null,
                 ...getFileFields(file, coverImage),
             } as ReportUpdateInput,
         });

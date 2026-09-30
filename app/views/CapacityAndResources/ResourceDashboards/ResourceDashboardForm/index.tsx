@@ -133,7 +133,10 @@ function ResourceDashboardForm() {
         if (isNotDefined(dashboard)) {
             return;
         }
-        const updatePayload = removeNull(mutationData) as ExternalDashboardUpdateInput;
+        const updatePayload = {
+            ...removeNull(mutationData),
+            description: mutationData.description ?? null,
+        } as ExternalDashboardUpdateInput;
         const res = await updateDashboard({
             id: dashboard,
             data: updatePayload,

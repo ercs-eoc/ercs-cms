@@ -141,9 +141,10 @@ function LinkForm() {
         if (isNotDefined(id)) {
             return;
         }
-        const updatePayload = Object.fromEntries(
-            Object.entries(removeNull(mutationData)).filter(([key]) => key !== 'email'),
-        ) as LinkUpdateInput;
+        const updatePayload = {
+            ...removeNull(mutationData),
+            description: mutationData.description ?? null,
+        } as LinkUpdateInput;
 
         const res = await updateLinkMutate({ id, data: updatePayload });
         const result = res.data?.updateLink;

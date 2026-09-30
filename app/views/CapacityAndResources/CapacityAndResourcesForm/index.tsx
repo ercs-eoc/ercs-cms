@@ -118,7 +118,10 @@ function CapacityAndResourcesForm() {
         if (isNotDefined(id)) {
             return;
         }
-        const updatePayload = removeNull(mutationData) as CapacityAndResourceUpdateInput;
+        const updatePayload = {
+            ...removeNull(mutationData),
+            description: mutationData.description ?? null,
+        } as CapacityAndResourceUpdateInput;
         const res = await updateCapacityAndResource({ id, data: updatePayload });
         const result = res.data?.updateCapacityAndResource;
 

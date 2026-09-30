@@ -90,7 +90,7 @@ function OurWorks() {
             },
             page: filter.page ?? null,
         },
-        order: { order: Ordering.Asc },
+        ordering: [{ order: Ordering.Asc }, { title: Ordering.Asc }],
     }), [limit, offset, filter]);
 
     const [{ fetching, data }, reExecuteQuery] = useExternalDashboardsQuery({

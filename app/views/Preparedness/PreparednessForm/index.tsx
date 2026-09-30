@@ -137,7 +137,10 @@ function PreparednessForm() {
         if (isNotDefined(id)) {
             return;
         }
-        const updatePayload = removeNull(mutationData) as ExternalDashboardUpdateInput;
+        const updatePayload = {
+            ...removeNull(mutationData),
+            description: mutationData.description ?? null,
+        } as ExternalDashboardUpdateInput;
         const res = await updateExternalDashboard({ id, data: updatePayload });
         const result = res.data?.updateExternalDashboard;
 

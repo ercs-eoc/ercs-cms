@@ -47,7 +47,7 @@ const GALLERY_IMAGES = gql`
     ) {
         galleryImages (
             filters: $filters,
-            order: { order: ASC },
+            ordering: [{ order: ASC }],
             pagination: {
                 offset: $offset,
                 limit: $limit
@@ -61,7 +61,6 @@ const GALLERY_IMAGES = gql`
                 order
                 image {
                     name
-                    size
                     url
                 }
             }
@@ -69,10 +68,10 @@ const GALLERY_IMAGES = gql`
     }
 `;
 
-const CREATE_GALLERY_IMAGE = gql`
-    mutation CreateGalleryImage($data: GalleryImageCreateInput!) {
-        createGalleryImage(data: $data) {
-            ... on GalleryImageTypeMutationResponseType {
+const BULK_CREATE_GALLERY_IMAGES = gql`
+    mutation BulkCreateGalleryImages($data: GalleryImageBulkCreateInput!) {
+        bulkCreateGalleryImages(data: $data) {
+            ... on GalleryImageTypeListMutationResponseType {
                 errors
                 ok
                 result {
